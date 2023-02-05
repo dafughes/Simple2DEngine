@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "vec.h"
 
 namespace s2d
 {

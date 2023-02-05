@@ -1,5 +1,5 @@
 #include "renderer.h"
-#include "vec.h"
+
 #include "mat.h"
 #include "s2dmath.h"
 

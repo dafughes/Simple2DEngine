@@ -2,6 +2,7 @@
 
 #include "defines.h"
 #include "vec.h"
+#include <cmath>
 
 namespace s2d
 {
@@ -128,9 +129,9 @@ namespace s2d
 	{
 		Vec3<T> result;
 
-		// HAAAAAACCCKKKKKKKSSSSS
-		result.x = lhs.e[0][0] * rhs.x + lhs.e[0][1] * rhs.y + lhs.e[0][2];
-		result.y = lhs.e[1][0] * rhs.x + lhs.e[1][1] * rhs.y + lhs.e[1][2];
+		result.x = lhs.e[0][0] * rhs.x + lhs.e[0][1] * rhs.y + lhs.e[0][2] * rhs.z;
+		result.y = lhs.e[1][0] * rhs.x + lhs.e[1][1] * rhs.y + lhs.e[1][2] * rhs.z;
+		result.z = lhs.e[2][0] * rhs.x + lhs.e[2][1] * rhs.y + lhs.e[2][2] * rhs.z;
 
 		return result;
 	}

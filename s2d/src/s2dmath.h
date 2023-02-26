@@ -2,6 +2,9 @@
 
 #include "defines.h"
 #include "vec.h"
+#include "mat.h"
+
+#include <algorithm>
 
 namespace s2d
 {
@@ -17,17 +20,39 @@ namespace s2d
 		return 180 * radians / PI;
 	}
 
-	// Represents an AABB
-	class Rect
+	constexpr f32 clamp(f32 value, f32 min = 0.0f, f32 max = 1.0f)
 	{
-	public:
-		Rect(f32 x0, f32 x1, f32 y0, f32 y1);
-		Rect(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, const Vec2f& v3);
+		return std::max(std::min(value, max), min);
+	}
 
-		bool clip(const Rect& other);
+	
 
-		f32 x0, x1, y0, y1;
+	// Represents 4 arbitrarily rotated vertices
+	struct Quad
+	{
+
+		Vec2f vertices[4];
+	};
+	
+	struct AABB
+	{
+		f32 left, right, top, bottom;
+
+		inline f32 width() const
+		{
+			return right - left;
+		}
+
+		inline f32 height() const
+		{
+			return top - bottom;
+		}
+
+
+
+		
 	};
 
+	
 
 }

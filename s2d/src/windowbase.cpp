@@ -36,5 +36,14 @@ namespace s2d
 		return m_title;
 	}
 
+	const Keyboard& WindowBase::keyboard() const
+	{
+		return m_keyboard;
+	}
+
+	const Mouse& WindowBase::mouse() const
+	{
+		return m_mouse;
+	}
 	
 }

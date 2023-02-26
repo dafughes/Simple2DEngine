@@ -2,11 +2,35 @@
 
 #include "defines.h"
 #include "vec.h"
+#include "s2dmath.h"
 
 #include <vector>
 
 namespace s2d
 {
+
+	struct Transform
+	{
+		Vec2f position;
+		Vec2f scale;
+		f32 rotation;
+	};
+
+	void draw_rect(
+		const AABB& rect,
+		const AABB& texture_coordinates,
+		const Vec2f& pos,
+		const Vec2f& scale,
+		f32 rotation,
+		const Vec2f& camera_pos,
+		f32 camera_zoom,
+		f32 camera_rotation,
+		int texture_width,
+		int texture_height,
+		const void* texture_data,
+		int screen_width,
+		int screen_height,
+		void* screen_data);
 
 	class Renderer
 	{
@@ -19,17 +43,23 @@ namespace s2d
 
 		void clear(u32 color);
 
+		
+
 		void draw_rect(
-			const Vec2f* rect,
-			const Vec2f* textureCoordinates,
-			const Vec2u& textureSize,
-			const void* texture,
+			const AABB& rect,
+			const AABB& texture_coordinates,
 			const Vec2f& pos,
 			const Vec2f& scale,
 			f32 rotation,
-			const Vec2f& cameraPos,
-			f32 zoom,
-			f32 cameraRotation);
+			const Vec2f& camera_pos,
+			f32 camera_zoom,
+			f32 camera_rotation,
+			int texture_width,
+			int texture_height,
+			const void* texture_data,
+			int screen_width,
+			int screen_height,
+			void* screen_data);
 
 	private:
 		u32 m_width, m_height;

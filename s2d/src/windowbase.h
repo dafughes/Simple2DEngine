@@ -3,6 +3,8 @@
 #include "defines.h"
 
 #include <string>
+#include "keyboard.h"
+#include "mouse.h"
 
 namespace s2d
 {
@@ -29,10 +31,16 @@ namespace s2d
 		virtual void set_size(u32 width, u32 height) = 0;
 		virtual void set_title(std::string title) = 0;
 
+		virtual const Keyboard& keyboard() const;
+		virtual const Mouse& mouse() const;
+
 	protected:
 		bool m_isOpen;
 		u32 m_width, m_height;
 		std::string m_title;
+
+		Keyboard m_keyboard;
+		Mouse m_mouse;
 	};
 	
 }

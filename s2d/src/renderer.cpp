@@ -1,6 +1,5 @@
 #include "renderer.h"
 #include "mat.h"
-#include "s2dmath.h"
 
 #include <algorithm>
 #include <iostream>
@@ -28,155 +27,116 @@ namespace s2d
 		std::fill(m_data.begin(), m_data.end(), color);
 	}
 
-	void Renderer::draw_rect(
-		const Vec2f* rect,
-		const Vec2f* textureCoordinates,
-		const Vec2u& textureSize,
-		const void* texture,
+	// Transforming e.g. view space to screen space
+	static Mat3f coordinate_transform(const AABB& src, const AABB& dst)
+	{
+		auto T0 = Mat3f::translation(-src.left, -src.top);
+		auto S = Mat3f::scaling(dst.width() / src.width(), dst.height() / src.height());
+		auto T1 = Mat3f::translation(dst.left, dst.top);
+
+		return T1 * S * T0;
+	}
+
+	void draw_rect(
+		const AABB& rect,
+		const AABB& texture_coordinates,
 		const Vec2f& pos,
 		const Vec2f& scale,
 		f32 rotation,
-		const Vec2f& cameraPos,
-		f32 zoom,
-		f32 cameraRotation
-	)
+		const Vec2f& camera_pos,
+		f32 camera_zoom,
+		f32 camera_rotation,
+		int texture_width,
+		int texture_height,
+		const void* texture_data,
+		int screen_width,
+		int screen_height,
+		void* screen_data)
 	{
-		const f32 ar = (f32)m_width / m_height;
-		Vec3f vertices[]{
-			{rect[0].x, rect[0].y, 1},
-			{rect[1].x, rect[1].y, 1},
-			{rect[2].x, rect[2].y, 1},
-			{rect[3].x, rect[3].y, 1},
+		// Winding order: from top left clockwise
+		Vec2f vertices[]{
+			{rect.left, rect.top},
+			{rect.right, rect.top},
+			{rect.right, rect.bottom},
+			{rect.left, rect.bottom},
 		};
 
-		// rect -> world -> view space
-		// M = translate * rotation * scale
-		// V = scale  * rotate * translate
-		// S = translate * scale
-		auto M =
-			Mat3f::translation(pos.x, pos.y) *
-			Mat3f::rotation(rotation) *
-			Mat3f::scaling(scale.x, scale.y);
-		auto V =
-			Mat3f::scaling(zoom, zoom) *
-			Mat3f::rotation(-cameraRotation) *
-			Mat3f::translation(-cameraPos.x, -cameraPos.y);
-		auto S =
-			Mat3f::translation((f32)m_width / 2, (f32)m_height / 2.0f) *
-			Mat3f::scaling((f32)m_width / (2 * ar), -(f32)m_height / 2.0f);
-		auto MVS = S * V * M;
+		const f32 aspect_ratio{ (f32)screen_width / (f32)screen_height };
 
+		auto M = Mat3f::translation(pos) * Mat3f::rotation(rotation) * Mat3f::scaling(scale);
+		auto V = Mat3f::scaling(camera_zoom, camera_zoom) * Mat3f::rotation(-camera_rotation) * Mat3f::translation(-camera_pos);
+		auto S = coordinate_transform({ -aspect_ratio, aspect_ratio, 1, -1 }, { 0, (f32)screen_width, 0, (f32)screen_height });
+
+		auto T = S * V * M;
+		// Transform vertices
 		for (int i = 0; i < 4; i++)
 		{
-			vertices[i] = M * vertices[i];
-			vertices[i] = V * vertices[i];
-			vertices[i] = S * vertices[i];
+			vertices[i] = T * vertices[i];
 		}
 
 		// Bounding box
-		f32 left = vertices[0].x, right = vertices[0].x, top = vertices[0].y, bottom = vertices[0].y;
+		AABB bb{
+			vertices[0].x,
+			vertices[0].x,
+			vertices[0].y,
+			vertices[0].y
+		};
 
 		for (int i = 0; i < 4; i++)
 		{
-			left = std::min(left, vertices[i].x);
-			right = std::max(right, vertices[i].x);
-			top = std::min(top, vertices[i].y);
-			bottom = std::max(bottom, vertices[i].y);
+			bb.left = std::min(bb.left, vertices[i].x);
+			bb.right = std::max(bb.right, vertices[i].x);
+			bb.top = std::min(bb.top, vertices[i].y);
+			bb.bottom = std::max(bb.bottom, vertices[i].y);
 		}
 
-		// Cull/Clip
-		f32 w = m_width;
-		f32 h = m_height;
+		// Clip to screen
+		bb.left = clamp(bb.left, 0, (f32)screen_width);
+		bb.right = clamp(bb.right, 0, (f32)screen_width);
+		bb.top = clamp(bb.top, 0, (f32)screen_height);
+		bb.bottom = clamp(bb.bottom, 0, (f32)screen_height);
 
-		left = std::max(std::min(left, w), 0.0f);
-		right = std::min(std::max(right, 0.0f), w);
-		top = std::max(std::min(top, h), 0.0f);
-		bottom = std::min(std::max(bottom, 0.0f), h);
+		auto tex_transform = coordinate_transform(texture_coordinates, rect);
 
-		if ((right - left) == 0 || (top - bottom) == 0)
+		auto T2 = T * tex_transform;
+		auto inverse_transform = T2.inverse();
+
+		Vec2f horizontal_increment = inverse_transform * Vec2f(1, 0) - inverse_transform * Vec2f(0, 0);
+		Vec2f vertical_increment = inverse_transform * Vec2f(0, 1) - inverse_transform * Vec2f(0, 0);
+
+		Vec2f p0 = inverse_transform * Vec2f(bb.left, bb.top);
+
+		f32 tex_min_x = std::min(texture_coordinates.left, texture_coordinates.right);
+		f32 tex_max_x = std::max(texture_coordinates.left, texture_coordinates.right);
+		f32 tex_min_y = std::min(texture_coordinates.top, texture_coordinates.bottom);
+		f32 tex_max_y = std::max(texture_coordinates.top, texture_coordinates.bottom);
+
+		int x0 = (int)bb.left;
+		int x1 = (int)bb.right;
+		int y0 = (int)bb.top;
+		int y1 = (int)bb.bottom;
+
+		for (int y = y0; y < y1; y++, p0 += vertical_increment)
 		{
-			return;
-		}
-		
-		// texture to model transform
-		f32 textureCoordsWidth = textureCoordinates[0].x;
-		f32 textureCoordsHeight = textureCoordinates[0].y;
-
-		f32 modelMinX = rect[0].x;
-		f32 modelMaxX = rect[0].x;
-		f32 modelMinY = rect[0].y;
-		f32 modelMaxY = rect[0].y;
-
-		for (int i = 0; i < 4; i++)
-		{
-			textureCoordsWidth = std::max(textureCoordsWidth, textureCoordinates[i].x);
-			textureCoordsHeight = std::max(textureCoordsHeight, textureCoordinates[i].y);
-
-			modelMinX = std::min(modelMinX, rect[i].x);
-			modelMaxX = std::max(modelMaxX, rect[i].x);
-			modelMinY = std::min(modelMinY, rect[i].y);
-			modelMaxY = std::max(modelMaxY, rect[i].y);
-		}
-
-		f32 modelWidth = std::abs(modelMaxX - modelMinX);
-		f32 modelHeight = std::abs(modelMaxY - modelMinY);
-
-		auto TexToModel =
-			Mat3f::translation(modelMinX, -modelMinY) *
-			Mat3f::scaling(modelWidth / textureCoordsWidth, -modelHeight / textureCoordsHeight);
-
-		auto screenToTexture = (MVS * TexToModel).inverse();
-
-		Vec3f topLeft = { left, top, 1 };
-
-		auto texIncrX = (screenToTexture * Vec3f(left + 1, top, 1)) - (screenToTexture * topLeft);
-		auto texIncrY = (screenToTexture * Vec3f(left, top + 1, 1)) - (screenToTexture * topLeft);
-
-		Vec3f t = screenToTexture * topLeft;
-
-		std::vector<u32> tex(64 * 64);
-
-		for (int i = 0; i < 64; i++)
-		{
-			u32 b = (u32)(255.0f * ((f32)i / 64));
-			u32 color = b | (b << 8) | (b << 16) | 255 << 24;
-			for (int j = 0; j < 64; j++)
+			Vec2f p = p0;
+			for (int x = x0; x < x1; x++, p += horizontal_increment)
 			{
-				tex[i * 64 + j] = color;
-			}
-		}
-
-
-		for (int y = (int)top; y < (int)bottom; y++)
-		{
-			Vec3f p = t;
-			for (int x = (int)left; x < (int)right; x++)
-			{
-				// Shitty texture sampling
-				if (p.x >= 0 && p.y >= 0)
+				if (p.x >= tex_min_x && p.x <= tex_max_x && p.y >= tex_min_y && p.y <= tex_max_y)
 				{
-					f32 x_ = p.x;
-					f32 y_ = p.y;
-					while (x_ >= 1)
-					{
-						x_ -= 1;
-					}
-					while (y_ >= 1)
-					{
-						y_ -= 1;
-					}
+					// Sample texture
+					f32 tex_x = p.x * (texture_width - 1);
+					f32 tex_y = p.y * (texture_height - 1);
 
-					auto coord = (int)(x_ * 64) + (int)(y_ * 64 + 64);
-					auto color = tex[coord];
+					int idx = (int)tex_x + (int)tex_y * texture_width;
+					u32* texture = (u32*)texture_data;
+					auto sample = texture[idx];
 
-					m_data[x + y * m_width] = color;
+					u32* screen = (u32*)screen_data;
+					screen[x + y * screen_width] = sample;
 				}
-				
-				
-				p += texIncrX;
 			}
-			t += texIncrY;
 		}
+
 	}
 }
 

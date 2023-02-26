@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "s2dmath.h"
 #include "vec.h"
 #include <cmath>
 
@@ -16,14 +17,42 @@ namespace s2d
 		Mat3 inverse() const;
 		Mat3 transpose() const;
 
+		static Mat3 translation(const Vec2<T>& pos);
 		static Mat3 translation(T x, T y);
+		static Mat3 scaling(const Vec2<T>& scale);
 		static Mat3 scaling(T x, T y);
-		static Mat3 rotation(T theta);
+		static Mat3 rotation(f32 theta);
+
+		static Mat3 transform(const Vec2<T>& pos, const Vec2<T>& scale, f32 rotation);
+		static Mat3 camera_transform(const Vec2<T>& pos, f32 zoom, f32 rotation);
+
 
 		T e[3][3];
 	};
 
 	template <typename T> Mat3<T>::Mat3() : e{} {}
+
+	template <typename T>
+	bool operator==(const Mat3<T>& lhs, const Mat3<T>& rhs)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				if (lhs.e[i][j] != rhs.e[i][j])
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	template <typename T>
+	bool operator!=(const Mat3<T>& lhs, const Mat3<T>& rhs)
+	{
+		return !operator==(lhs, rhs);
+	}
 
 	template <typename T>
 	Mat3<T> Mat3<T>::identity()
@@ -93,11 +122,31 @@ namespace s2d
 	}
 
 	template <typename T>
+	Mat3<T> Mat3<T>::translation(const Vec2<T>& pos)
+	{
+		Mat3<T> m = Mat3<T>::identity();
+		m.e[0][2] = pos.x;
+		m.e[1][2] = pos.y;
+		m.e[2][2] = T(1);
+		return m;
+	}
+
+	template <typename T>
 	Mat3<T> Mat3<T>::translation(T x, T y)
 	{
 		Mat3<T> m = Mat3<T>::identity();
 		m.e[0][2] = x;
 		m.e[1][2] = y;
+		m.e[2][2] = T(1);
+		return m;
+	}
+
+	template <typename T>
+	Mat3<T> Mat3<T>::scaling(const Vec2<T>& scale)
+	{
+		Mat3<T> m;
+		m.e[0][0] = scale.x;
+		m.e[1][1] = scale.y;
 		m.e[2][2] = T(1);
 		return m;
 	}
@@ -113,7 +162,7 @@ namespace s2d
 	}
 
 	template <typename T>
-	Mat3<T> Mat3<T>::rotation(T theta)
+	Mat3<T> Mat3<T>::rotation(f32 theta)
 	{
 		Mat3<T> m;
 		m.e[0][0] = std::cos(theta);
@@ -122,6 +171,30 @@ namespace s2d
 		m.e[1][1] = std::cos(theta);
 		m.e[2][2] = T(1);
 		return m;
+	}
+
+	template <typename T>
+	Mat3<T> Mat3<T>::transform(const Vec2<T>& pos, const Vec2<T>& scale, f32 rotation)
+	{
+		return scaling(scale) * Mat3<T>::rotation(rotation) * translation(pos);
+	}
+
+	template <typename T>
+	Mat3<T> Mat3<T>::camera_transform(const Vec2<T>& pos, f32 zoom, f32 rotation)
+	{
+		return translation(-pos) * Mat3<T>::rotation(-rotation) * scaling(zoom, zoom);
+	}
+
+	// Hacky...
+	template <typename T>
+	Vec2<T> operator*(const Mat3<T>& lhs, const Vec2<T>& rhs)
+	{
+		Vec2<T> result;
+
+		result.x = lhs.e[0][0] * rhs.x + lhs.e[0][1] * rhs.y + lhs.e[0][2];
+		result.y = lhs.e[1][0] * rhs.x + lhs.e[1][1] * rhs.y + lhs.e[1][2];
+
+		return result;
 	}
 
 	template <typename T>
@@ -158,4 +231,8 @@ namespace s2d
 	}
 
 	using Mat3f = Mat3<f32>;
+
+	
+
+	
 }

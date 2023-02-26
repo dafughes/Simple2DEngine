@@ -1,7 +1,34 @@
 #include "win32_window.h"
+#include <iostream>
+#include <windowsx.h>
 
 namespace s2d
 {
+	// Keycode conversion
+	constexpr Keycode convert_keycode(WPARAM keycode)
+	{
+		switch (keycode)
+		{
+		case 0x41: return Keycode::A;
+		case 0x44: return Keycode::D;
+		case 0x45: return Keycode::E;
+		case 0x51: return Keycode::Q;
+		case 0x53: return Keycode::S;
+		case 0x57: return Keycode::W;
+		case VK_NUMPAD0: return Keycode::NUMPAD_0;
+		case VK_NUMPAD1: return Keycode::NUMPAD_1;
+		case VK_NUMPAD2: return Keycode::NUMPAD_2;
+		case VK_NUMPAD3: return Keycode::NUMPAD_3;
+		case VK_NUMPAD4: return Keycode::NUMPAD_4;
+		case VK_NUMPAD5: return Keycode::NUMPAD_5;
+		case VK_NUMPAD6: return Keycode::NUMPAD_6;
+		case VK_NUMPAD7: return Keycode::NUMPAD_7;
+		case VK_NUMPAD8: return Keycode::NUMPAD_8;
+		case VK_NUMPAD9: return Keycode::NUMPAD_9;
+		default: return Keycode::None;
+		}
+	}
+
 	Win32Window::Win32Window() : WindowBase()
 	{
 
@@ -81,6 +108,12 @@ namespace s2d
 
 	void Win32Window::process_events()
 	{
+		// Clear keypresses/releases
+		m_keyboard.clear();
+
+		// Clear mouse
+		m_mouse.clear();
+
 		MSG msg{};
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
@@ -144,6 +177,8 @@ namespace s2d
 		return result;
 	}
 
+
+
 	LRESULT CALLBACK Win32Window::window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	{
 		LRESULT result = 0;
@@ -165,6 +200,36 @@ namespace s2d
 			m_width = static_cast<u32>(width);
 			m_height = static_cast<u32>(height);
 
+		} break;
+		case WM_KEYDOWN:
+		case WM_SYSKEYDOWN:
+		{
+			m_keyboard.set_pressed(convert_keycode(wparam));
+		} break;
+		case WM_KEYUP:
+		case WM_SYSKEYUP:
+		{
+			m_keyboard.set_released(convert_keycode(wparam));
+		} break;
+		case WM_MOUSEWHEEL:
+		{
+			auto delta = (f32)GET_WHEEL_DELTA_WPARAM(wparam) / (f32)WHEEL_DELTA;
+			m_mouse.wheel_delta = delta;
+		} break;
+		case WM_MOUSEMOVE:
+		{
+			m_mouse.x = GET_X_LPARAM(lparam);
+			m_mouse.y = GET_Y_LPARAM(lparam);
+		} break;
+		case WM_LBUTTONDOWN:
+		{
+			m_mouse.left_button_down = true;
+			m_mouse.left_button_pressed = true;
+		} break;
+		case WM_LBUTTONUP:
+		{
+			m_mouse.left_button_down = false;
+			m_mouse.left_button_released = true;
 		} break;
 		default:
 			result = DefWindowProc(hwnd, msg, wparam, lparam);

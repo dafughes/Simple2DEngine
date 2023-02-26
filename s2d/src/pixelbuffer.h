@@ -12,11 +12,15 @@ namespace s2d
 		Pixelbuffer(size_t width, size_t height);
 		~Pixelbuffer();
 
-		Pixelbuffer(const Pixelbuffer&) = delete;
-		Pixelbuffer& operator=(const Pixelbuffer&) = delete;
+		Pixelbuffer(const Pixelbuffer& other);
+		
+		Pixelbuffer& operator=(const Pixelbuffer& other);
+
+
 
 		size_t width() const;
 		size_t height() const;
+		size_t size() const;
 
 		const u32* data() const;
 		u32* data();

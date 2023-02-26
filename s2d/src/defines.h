@@ -14,3 +14,5 @@ typedef uint64_t u64;
 
 typedef float f32;
 typedef double f64;
+
+typedef u8 byte;

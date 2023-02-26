@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "mat.h"
+#include "bmp.h"
 
 #include <algorithm>
 #include <iostream>
@@ -7,25 +8,7 @@
 
 namespace s2d
 {
-	Renderer::Renderer() : m_width(0), m_height(0), m_data(std::vector<u32>())
-	{
-	}
-	void* Renderer::data() const
-	{
-		return (void*)m_data.data();
-	}
-
-	void Renderer::set_viewport(u32 width, u32 height)
-	{
-		m_width = width;
-		m_height = height;
-		m_data.resize(width * height);
-	}
-
-	void Renderer::clear(u32 color)
-	{
-		std::fill(m_data.begin(), m_data.end(), color);
-	}
+	
 
 	// Transforming e.g. view space to screen space
 	static Mat3f coordinate_transform(const AABB& src, const AABB& dst)
@@ -136,7 +119,73 @@ namespace s2d
 				}
 			}
 		}
+	}
 
+	bool simple_font_loaded = false;
+	u64 font[94];
+	int ascii_offset = 33;
+
+	void load_simple_font(const char* file)
+	{
+		Pixelbuffer font_image = load_bmp(file);
+
+		if (font_image.size() == 0)
+		{
+			return;
+		}
+
+		simple_font_loaded = true;
+
+		int font_index = 0;
+		for (int y = 0; y < font_image.height(); y += 8)
+		{
+			for (int x = 0; x < font_image.width(); x += 8)
+			{
+				u64 glyph = 0;
+				for (int i = 0; i < 8; i++)
+				{
+					for (int j = 0; j < 8; j++)
+					{
+						u32 color = font_image.get_pixel(x + j, y + i);
+
+						if (color == 0xff000000)
+						{
+							glyph |= (u64)1 << (i * 8 + j);
+						}
+					}
+				}
+				font[font_index] = glyph;
+
+				font_index++;
+				if (font_index > 94) return;
+			}
+		}
+	}
+
+	void draw_debug_text(const char* text, int x, int y, Pixelbuffer& buffer)
+	{
+		const int text_length = strlen(text);
+
+		const int text_height = 0;
+		const int text_width = text_length * 8;
+
+		for (int i = 0; i < text_length; i++)
+		{
+			auto c = text[i];
+
+			auto glyph = font[c - ascii_offset];
+
+			for (int yy = 0; yy < 8; yy++)
+			{
+				for (int xx = 0; xx < 8; xx++)
+				{
+					if ((glyph >> (xx + yy * 8)) & 1)
+					{
+						buffer.set_pixel(x + i * 8 + xx, y + yy, 0xffffffff);
+					}
+				}
+			}
+		}
 	}
 }
 

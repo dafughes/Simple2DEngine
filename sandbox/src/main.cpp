@@ -1,5 +1,6 @@
 #include "window.h"
 #include "renderer.h"
+#include "bmp.h"
 #include "s2dmath.h"
 #include "pixelbuffer.h"
 
@@ -83,13 +84,16 @@ u32 rgb(f32 r, f32 g, f32 b)
 
 int main()
 {
+
+	load_simple_font("C:\\Users\\Samwise\\Documents\\programming\\s2d\\s2d\\res\\pixelfont.bmp");
+
 	const int width = 640;
 	const int height = 480;
 	
 	Pixelbuffer screenbuffer(width, height);
 
 	AABB rect{ -1, 1, 0.5, -0.5 };
-	AABB tex{ 0, 1, 1, 0 };
+	AABB tex{ 0, 1, 0, 1 };
 
 	Vec2f pos{ 0,0 };
 	Vec2f scale{ 1,1 };
@@ -131,6 +135,10 @@ int main()
 	Vec2f prev_camera_pos;
 	bool is_dragged = false;
 
+	float fps_update_frequency = 0.5;
+	int frames = 0;
+	Timer fps_timer;
+	float fps = 0;
 	while (window.is_open())
 	{
 		window.process_events();
@@ -251,7 +259,26 @@ int main()
 			sprite.width(), sprite.height(), (const void*)sprite.data(),
 			screenbuffer.width(), screenbuffer.height(), (void*)screenbuffer.data());
 
+
+		
+		if (fps_timer.seconds() >= fps_update_frequency)
+		{
+			fps = (f32)frames / fps_timer.seconds();
+			fps_timer.reset();
+			frames = 0;
+		}
+
+		char buffer[256];
+
+		sprintf_s(buffer, 255, "FPS: %.1f, %d", fps, frames);
+		draw_debug_text(buffer, 100, 100, screenbuffer);
+
+		sprintf_s(buffer, 255, "Window resolution: %dx%d", window.width(), window.height());
+		draw_debug_text(buffer, 100, 108, screenbuffer);
+
 		window.draw(screenbuffer.data());
+
+		frames++;
 	}
 
 	window.terminate();

@@ -20,6 +20,49 @@ namespace s2d
 		}
 	}
 
+	Pixelbuffer::Pixelbuffer(const Pixelbuffer& other) :
+		m_width(other.m_width),
+		m_height(other.m_height),
+		m_data(nullptr)
+	{
+		if (other.size() > 0)
+		{
+			m_data = (u32*)malloc(other.size() * sizeof(u32));
+
+			if (m_data != nullptr)
+			{
+				// TODO: log errors
+				memcpy(m_data, other.m_data, other.size() * sizeof(u32));
+			}
+		}
+	}
+
+	Pixelbuffer& Pixelbuffer::operator=(const Pixelbuffer& other)
+	{
+		if (this != &other)
+		{
+			m_width = other.m_width;
+			m_height = other.m_height;
+
+			if (m_data)
+			{
+				free(m_data);
+			}
+
+			if (other.size() > 0)
+			{
+				m_data = (u32*)malloc(other.size() * sizeof(u32));
+
+				if (m_data != nullptr)
+				{
+					// TODO: log errors
+					memcpy(m_data, other.m_data, other.size() * sizeof(u32));
+				}
+			}
+		}
+		return *this;
+	}
+
 	Pixelbuffer::~Pixelbuffer()
 	{
 		if (m_data)
@@ -36,6 +79,11 @@ namespace s2d
 	size_t Pixelbuffer::height() const
 	{
 		return m_height;
+	}
+
+	size_t Pixelbuffer::size() const
+	{
+		return m_width * m_height;
 	}
 
 	const u32* Pixelbuffer::data() const
@@ -84,5 +132,6 @@ namespace s2d
 		{
 			m_data[x + y * m_width] = color;
 		}
+		
 	}
 }
